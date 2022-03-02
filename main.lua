@@ -1,0 +1,1 @@
+-- This is a WIP script, I'm figuring out how to sort this script into functions efficiently. 
