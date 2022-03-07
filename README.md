@@ -4,3 +4,7 @@ Project Ver: 11.3.
 
 # Framework Link
 Check out the framework if you want to run this project yourself; https://github.com/love2d/love
+
+# Tutorial Playlist
+I used the following playlist to help me get started on how I should program a game, thanks a bunch Challacade!
+https://www.youtube.com/playlist?list=PLqPLyUreLV8DrLcLvQQ64Uz_h_JGLgGg2
