@@ -19,9 +19,16 @@ assetsDirectory = "assets/"
 imagesDirectory = assetsDirectory.."images/"
 fontsDirectory = assetsDirectory.."fonts/"
 librariesDirectory = assetsDirectory.."libraries/"
+mapsDirectory = assetsDirectory.."maps/"
 
 anim8 = require(librariesDirectory.."anim8")
 love.graphics.setDefaultFilter("nearest", "nearest")
+
+sti = require(librariesDirectory.."sti")
+gameMap = sti(mapsDirectory.."testmap.lua")
+
+camera = require(librariesDirectory.."camera")
+cam = camera()
 
 -- Variables --
 	if customFont then
@@ -48,6 +55,7 @@ function printStats()
 		love.graphics.print("cpuThreads: "..love.system.getProcessorCount(),0,50)
 		love.graphics.print("cpuFrameTime: "..os.clock(),0,65)
 		love.graphics.print("Resolution: "..width.." x "..height,0,110)
+		love.graphics.print("CurrentFPS: "..tostring(love.timer.getFPS()), 400, 110)
 
 		love.graphics.print("Character Information: ",sysInfoTitle,0,127)
 		love.graphics.print("CharPositionX: "..player.x,0,142)
@@ -62,7 +70,7 @@ function love.load()
 	player = {}
 	player.x = 0
 	player.y = 0
-	--player.sprite = love.graphics.newImage(imagesDirectory.."whiteFace.png")
+	--player.sprite = love.graphics.newImage(imagesDirectory.."oldAssets/whiteFace.png")
 	player.spriteSheet = love.graphics.newImage(imagesDirectory.."basicChar.png")
 	player.grid = anim8.newGrid(12,18, player.spriteSheet:getWidth(), player.spriteSheet:getHeight())
 
@@ -79,9 +87,12 @@ function love.load()
 end
 
 function love.update(dt) -- dt means "deltaTime", remember this!
+	--dt = 0.016
+
 	local isMoving = false
 	playerSpeed = 1
 
+	-- Untie from FPS
 	if love.keyboard.isDown("w") or love.keyboard.isDown("up") then
 		player.y = player.y - playerSpeed
 		player.anim = player.animations.up
@@ -108,16 +119,54 @@ function love.update(dt) -- dt means "deltaTime", remember this!
 	end
 
 	player.anim:update(dt)
+
+	cam:lookAt(player.x, player.y)
+
+	local w = love.graphics:getWidth()
+	local h = love.graphics:getHeight()
+
+	local mapW = gameMap.width * gameMap.tilewidth
+	local mapH = gameMap.height * gameMap.tileheight
+
+	local function handleCameraRestrictions()
+		if cam.x < w/2 then
+			cam.x = w/2
+		end
+
+		if cam.y < h/2 then
+			cam.y = h/2
+		end
+
+		if cam.x > (mapW - w/2) then
+			cam.x = (mapW - w/2)
+		end
+
+		if cam.y > (mapH - h/2) then
+			cam.y = (mapH - h/2)
+		end
+	end
+
+	handleCameraRestrictions()
+
 end
 
 function love.draw()
-	-- Background
-	love.graphics.setBackgroundColor(bgRed, bgGreen, bgBlue, bgAlpha)
-	love.graphics.draw(altBackground, 0,0) -- make it actually tile pls
+	-- Camera Draw
+	cam:attach()
 
-	-- Player
-	player.anim:draw(player.spriteSheet, player.x, player.y, nil, 10)
+		-- Background
+		love.graphics.setBackgroundColor(bgRed, bgGreen, bgBlue, bgAlpha)
+		love.graphics.draw(altBackground, 0,0)
+		gameMap:drawLayer(gameMap.layers["Background"])
+		gameMap:drawLayer(gameMap.layers["Decoration"])
 
-	-- Misc
+		-- Player
+		player.anim:draw(player.spriteSheet, player.x, player.y, nil, 6, nil, 6, 9)
+
+	-- Camera Stop Drawing
+	cam:detach()
+
+	-- Draw System Info
 	printStats()
+
 end
