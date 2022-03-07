@@ -1,10 +1,7 @@
 -- [ Settings ] --
 
--- BackgroundColor
-bgRed = 75/255
-bgGreen = 74/255
-bgBlue = 72/255
-bgAlpha = 100/100
+-- Collisions
+showCollision = false
 
 -- Stats and Fonts
 printStatistics = true
@@ -20,6 +17,7 @@ imagesDirectory = assetsDirectory.."images/"
 fontsDirectory = assetsDirectory.."fonts/"
 librariesDirectory = assetsDirectory.."libraries/"
 mapsDirectory = assetsDirectory.."maps/"
+audioDirectory = assetsDirectory.."audio/"
 
 anim8 = require(librariesDirectory.."anim8")
 love.graphics.setDefaultFilter("nearest", "nearest")
@@ -29,6 +27,9 @@ gameMap = sti(mapsDirectory.."testmap.lua")
 
 camera = require(librariesDirectory.."camera")
 cam = camera()
+
+wf = require(librariesDirectory.."windfield")
+world = wf.newWorld(0, 0)
 
 -- Variables --
 	if customFont then
@@ -55,21 +56,38 @@ function printStats()
 		love.graphics.print("cpuThreads: "..love.system.getProcessorCount(),0,50)
 		love.graphics.print("cpuFrameTime: "..os.clock(),0,65)
 		love.graphics.print("Resolution: "..width.." x "..height,0,110)
-		love.graphics.print("CurrentFPS: "..tostring(love.timer.getFPS()), 400, 110)
+		love.graphics.print("CurrentFPS: "..tostring(love.timer.getFPS()),0,127)
 
-		love.graphics.print("Character Information: ",sysInfoTitle,0,127)
-		love.graphics.print("CharPositionX: "..player.x,0,142)
-		love.graphics.print("CharPositionY: "..player.y,0,157)
-		love.graphics.print("CharSpeed: "..playerSpeed,0,172)
-		love.graphics.print("CharControl: ".."WASD or Up; Right; Down; Left; Arrow Keys.",0,187)
+		love.graphics.print("Character Information: ",sysInfoTitle,0,142)
+		love.graphics.print("CharPositionX: "..player.x,0,157)
+		love.graphics.print("CharPositionY: "..player.y,0,172)
+		love.graphics.print("CharSpeed: "..player.speed,0,187)
+		love.graphics.print("CharControl: ".."WASD or Up; Right; Down; Left; Arrow Keys.",0,202)
+		love.graphics.print("Audio Control: ".."Space to play Soundbyte, Z and X to Pause and Continue BGM.",0,217)
+	end
+end
+
+-- Audio Function
+function love.keypressed(key)
+	if key == "space" then
+		sounds.blip:play()
+	end
+	if key == "z" then
+		sounds.music:play()
+	end
+	if key == "x" then
+		sounds.music:pause()
 	end
 end
 
 -- Base Functions --
 function love.load()
 	player = {}
-	player.x = 0
-	player.y = 0
+	player.collider = world:newBSGRectangleCollider(400, 250, 50, 100, 10)
+	player.collider:setFixedRotation(true)
+	player.x = 400
+	player.y = 200
+	player.speed = 300
 	--player.sprite = love.graphics.newImage(imagesDirectory.."oldAssets/whiteFace.png")
 	player.spriteSheet = love.graphics.newImage(imagesDirectory.."basicChar.png")
 	player.grid = anim8.newGrid(12,18, player.spriteSheet:getWidth(), player.spriteSheet:getHeight())
@@ -84,39 +102,63 @@ function love.load()
 
 	background = love.graphics.newImage(imagesDirectory.."whiteGrid.png")
 	altBackground = love.graphics.newImage(imagesDirectory.."blackGrid.png")
+
+	local walls = {}
+	if gameMap.layers["Walls"] then
+		for i, obj in pairs(gameMap.layers["Walls"].objects) do
+			local wall = world:newRectangleCollider(obj.x, obj.y, obj.width, obj.height)
+			wall:setType("static")
+			table.insert(walls, wall)
+		end
+	end
+
+	sounds = {}
+	sounds.blip = love.audio.newSource(audioDirectory.."blip.wav", "static")
+	sounds.music = love.audio.newSource(audioDirectory.."music.mp3", "stream")
+	sounds.music:setLooping(true)
+
+	sounds.music:play()
 end
 
 function love.update(dt) -- dt means "deltaTime", remember this!
 	--dt = 0.016
 
 	local isMoving = false
-	playerSpeed = 1
+
+	local vx = 0
+	local vy = 0
 
 	-- Untie from FPS
 	if love.keyboard.isDown("w") or love.keyboard.isDown("up") then
-		player.y = player.y - playerSpeed
+		vy = player.speed * -1
 		player.anim = player.animations.up
 		isMoving = true
 	end
 	if love.keyboard.isDown("a") or love.keyboard.isDown("left") then
-		player.x = player.x - playerSpeed
+		vx = player.speed * -1
 		player.anim = player.animations.left
 		isMoving = true
 	end
 	if love.keyboard.isDown("s") or love.keyboard.isDown("down") then
-		player.y = player.y + playerSpeed
+		vy = player.speed
 		player.anim = player.animations.down
 		isMoving = true
 	end
 	if love.keyboard.isDown("d") or love.keyboard.isDown("right")then
-		player.x = player.x + playerSpeed
+		vx = player.speed
 		player.anim = player.animations.right
 		isMoving = true
 	end
 
+	player.collider:setLinearVelocity(vx, vy)
+
 	if not isMoving then
 		player.anim:gotoFrame(2)
 	end
+
+	world:update(dt)
+	player.x = player.collider:getX()
+	player.y = player.collider:getY()
 
 	player.anim:update(dt)
 
@@ -154,11 +196,14 @@ function love.draw()
 	-- Camera Draw
 	cam:attach()
 
-		-- Background
-		love.graphics.setBackgroundColor(bgRed, bgGreen, bgBlue, bgAlpha)
-		love.graphics.draw(altBackground, 0,0)
-		gameMap:drawLayer(gameMap.layers["Background"])
-		gameMap:drawLayer(gameMap.layers["Decoration"])
+		-- Map Layers
+		gameMap:drawLayer(gameMap.layers["Ground"])
+		gameMap:drawLayer(gameMap.layers["Trees"])
+
+		-- Map / World Draw
+		if showCollision then
+			world:draw() -- Show Collision
+		end
 
 		-- Player
 		player.anim:draw(player.spriteSheet, player.x, player.y, nil, 6, nil, 6, 9)
