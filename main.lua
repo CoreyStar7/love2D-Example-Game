@@ -4,7 +4,7 @@
 showCollision = false
 
 -- Stats and Fonts
-printStatistics = true
+printStatistics = false
 customFont = true
 
 -- Custom Font
