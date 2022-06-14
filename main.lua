@@ -1,10 +1,10 @@
 -- [ Settings ] --
 
 -- Collisions
-showCollision = false
+showCollision = true
 
 -- Stats and Fonts
-printStatistics = false
+printStatistics = true
 customFont = true
 
 -- Custom Font
